@@ -21,7 +21,7 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 
 <div class="card">
 <h2>Terms & Agreement</h2>
-<p>Please read aloud. Spoken words will be highlighted in real-time.</p>
+<p>Please read aloud. Words will be highlighted in real-time.</p>
 
 <div id="volumeCircle"></div>
 <div class="read-zone" id="readZone"></div>
@@ -30,52 +30,86 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 </div>
 
 <script>
-// Terms text
-const text = `By using this service, you agree that your personal data may be collected, processed, and stored in accordance with our Privacy Policy and Terms.`;
+document.addEventListener("DOMContentLoaded", () => {
+  const text = `By using this service, you agree that your personal data may be collected, processed, and stored in accordance with our Privacy Policy and Terms.`;
 
-// Split text into words
-const readZone = document.getElementById("readZone");
-const words = text.split(" ");
-words.forEach((word,i)=>{
-  const span=document.createElement("span");
-  span.textContent=word+" ";
-  span.className="word";
-  span.id="word-"+i;
-  readZone.appendChild(span);
+  const readZone = document.getElementById("readZone");
+  const words = text.split(" ");
+  words.forEach((word,i)=>{
+    const span=document.createElement("span");
+    span.textContent=word+" ";
+    span.className="word";
+    span.id="word-"+i;
+    readZone.appendChild(span);
+  });
+
+  const startBtn = document.getElementById("startBtn");
+  const checkbox = document.getElementById("agree");
+  const volumeCircle = document.getElementById("volumeCircle");
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition,audioContext,analyser,microphone,dataArray;
+
+  startBtn.addEventListener("click", async ()=>{
+    // Request microphone access inside click
+    let stream;
+    try { 
+      stream = await navigator.mediaDevices.getUserMedia({audio:true}); 
+    } catch(e){ 
+      alert("Microphone access required."); 
+      return; 
+    }
+    startBtn.disabled = true;
+
+    // Volume circle
+    audioContext = new (window.AudioContext||window.webkitAudioContext)();
+    microphone = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    microphone.connect(analyser);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    function animateVolume(){
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0; dataArray.forEach(v=>sum+=v);
+      const avg = sum / dataArray.length;
+      const scale = Math.min(1, avg/50);
+      volumeCircle.style.transform = `scale(${scale})`;
+      requestAnimationFrame(animateVolume);
+    }
+    animateVolume();
+
+    // Speech recognition
+    if(!SpeechRecognition){ alert("Browser not supported."); return; }
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang='en-US';
+
+    recognition.onresult = (event)=>{
+      const transcript = Array.from(event.results)
+        .map(r=>r[0].transcript)
+        .join(" ")
+        .toLowerCase()
+        .replace(/[^a-z ]/g,"");
+
+      words.forEach((word,i)=>{
+        const clean = word.replace(/[^a-z]/g,"").toLowerCase();
+        const span = document.getElementById("word-"+i);
+        if(clean.length>0 && transcript.includes(clean)) span.classList.add("read");
+      });
+
+      const allRead = words.every((_,i)=>document.getElementById("word-"+i).classList.contains("read"));
+      if(allRead){
+        checkbox.disabled=false;
+        recognition.stop();
+      }
+    };
+
+    recognition.onerror=(e)=>{ console.error(e); alert("Speech recognition error."); }
+    recognition.start();
+  });
 });
+</script>
 
-const startBtn=document.getElementById("startBtn");
-const checkbox=document.getElementById("agree");
-const volumeCircle=document.getElementById("volumeCircle");
-
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition,audioContext,analyser,microphone,dataArray;
-
-startBtn.addEventListener("click", async ()=>{
-  // Request microphone access first
-  let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({audio:true}); } 
-  catch(e){ alert("Microphone access required."); return; }
-  startBtn.disabled=true;
-
-  // Volume Circle
-  audioContext=new (window.AudioContext||window.webkitAudioContext)();
-  microphone=audioContext.createMediaStreamSource(stream);
-  analyser=audioContext.createAnalyser();
-  analyser.fftSize=256;
-  microphone.connect(analyser);
-  dataArray=new Uint8Array(analyser.frequencyBinCount);
-
-  function animateVolume(){
-    analyser.getByteFrequencyData(dataArray);
-    let sum=0; dataArray.forEach(v=>sum+=v);
-    const avg=sum/dataArray.length;
-    const scale=Math.min(1, avg/50);
-    volumeCircle.style.transform=`scale(${scale})`;
-    requestAnimationFrame(animateVolume);
-  }
-  animateVolume();
-
-  // Speech Recognition
-  if(!SpeechRecognition){ alert("Browser not supported."); return; }
-  recognition=new SpeechRecognition
+</body>
+</html>
