@@ -8,15 +8,15 @@
 body { font-family: Arial; background:#f2f2f2; margin:0; padding:0; transition: background 0.1s; }
 .card { max-width:600px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
 h2{margin-top:0;}
-.read-zone { padding:15px; background:#fff; border-left:4px solid #ffb700; border-radius:6px; min-height:50px; }
-.chunk { display:inline-block; margin:0 2px; padding:2px 2px; background:#f0f0f0; border-radius:3px; color:#000; }
-.chunk.current { background:#ffd966; font-weight:bold; }
-.chunk.read { background:#ffe699; }
+.read-zone { padding:15px; background:#ffffff; color:#000000; border-left:4px solid #ffb700; border-radius:6px; min-height:50px; }
+.chunk { display:inline-block; margin:0 2px; padding:2px 2px; background:#f0f0f0; border-radius:3px; color:#000; font-size:16px; }
+.chunk.current { background:#ffd966; font-weight:bold; color:#000; }
+.chunk.read { background:#ffe699; color:#000; }
 #volumeCircle { width:50px; height:50px; border-radius:50%; background:#ffd966; transform:scale(0); margin:0 auto 15px; display:block; transition: transform 0.05s linear; }
-#liveTranscript, #statusBox { margin-top:10px; padding:10px; background:#e0e0e0; border-radius:6px; min-height:40px; font-style:italic; overflow-wrap:break-word; }
+#liveTranscript, #statusBox { margin-top:10px; padding:10px; background:#e0e0e0; border-radius:6px; min-height:40px; font-style:italic; overflow-wrap:break-word; color:#000; }
 button { padding:10px; margin-top:10px; width:100%; background:#007bff; color:#fff; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
 button:disabled { background:#aaa; cursor:not-allowed; }
-.agree { margin-top:20px; display:block; }
+.agree { margin-top:20px; display:block; color:#000; }
 </style>
 </head>
 <body>
@@ -118,4 +118,46 @@ document.addEventListener("DOMContentLoaded", () => {
     recognition.onstart = () => logStatus("Recognition started");
 
     recognition.onresult = (event)=>{
-      if(event.results.length >
+      if(event.results.length > 0){
+        const transcript = Array.from(event.results)
+          .map(r => r[0].transcript)
+          .join(" ")
+          .toLowerCase()
+          .replace(/[^a-z ]/g," ");
+
+        liveTranscriptDiv.textContent = transcript;
+        logStatus("Speech detected");
+        document.body.style.background = "#d0ffd0"; // flash green
+        setTimeout(()=>document.body.style.background="#f2f2f2",100);
+
+        const currentText = textChunks[currentChunk].toLowerCase().replace(/[^a-z ]/g,"");
+        if(transcript.includes(currentText)){
+          const span = document.getElementById("chunk-"+currentChunk);
+          span.classList.remove("current");
+          span.classList.add("read");
+          currentChunk++;
+          if(currentChunk<textChunks.length){
+            document.getElementById("chunk-"+currentChunk).classList.add("current");
+          } else {
+            checkbox.disabled = false;
+            recognition.stop();
+            logStatus("All chunks read! Recognition stopped.");
+          }
+        }
+      }
+    };
+
+    recognition.onerror = (e)=>{
+      logStatus("Recognition error: " + e.error);
+      console.error(e);
+    };
+
+    recognition.onend = () => logStatus("Recognition ended");
+
+    recognition.start();
+  });
+});
+</script>
+
+</body>
+</html>
