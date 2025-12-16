@@ -1,29 +1,121 @@
-<button id="startBtn">Start Recognition</button>
-<div id="transcript">Transcript will appear here</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Terms Reader</title>
+<style>
+body { font-family: Arial; background:#f2f2f2; margin:0; padding:0; transition: background 0.1s; }
+.card { max-width:600px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+h2{margin-top:0;}
+.read-zone { padding:15px; background:#fff; border-left:4px solid #ffb700; border-radius:6px; min-height:50px; }
+.chunk { display:inline-block; margin:0 2px; padding:2px 2px; background:#f0f0f0; border-radius:3px; color:#000; }
+.chunk.current { background:#ffd966; font-weight:bold; }
+.chunk.read { background:#ffe699; }
+#volumeCircle { width:50px; height:50px; border-radius:50%; background:#ffd966; transform:scale(0); margin:0 auto 15px; display:block; transition: transform 0.05s linear; }
+#liveTranscript, #statusBox { margin-top:10px; padding:10px; background:#e0e0e0; border-radius:6px; min-height:40px; font-style:italic; overflow-wrap:break-word; }
+button { padding:10px; margin-top:10px; width:100%; background:#007bff; color:#fff; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
+button:disabled { background:#aaa; cursor:not-allowed; }
+.agree { margin-top:20px; display:block; }
+</style>
+</head>
+<body>
+
+<div class="card">
+<h2>Terms & Agreement</h2>
+<p>Read aloud. Current chunk is highlighted. Live transcript and status show what the app hears.</p>
+
+<div id="volumeCircle"></div>
+<div class="read-zone" id="readZone"></div>
+<div id="liveTranscript">Your speech will appear here...</div>
+<div id="statusBox">Status messages will appear here...</div>
+<button id="startBtn">🎤 Start Reading</button>
+<label class="agree"><input type="checkbox" id="agree" disabled> I have read and understood the rules</label>
+</div>
+
 <script>
-const startBtn = document.getElementById("startBtn");
-const transcriptDiv = document.getElementById("transcript");
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+document.addEventListener("DOMContentLoaded", () => {
+  const textChunks = [
+    "Please read these rules carefully.",
+    "By using this service, you agree to follow all rules.",
+    "Respect other users.",
+    "Your information may be saved to improve your experience.",
+    "Always be honest and polite.",
+    "Thank you for cooperating."
+  ];
 
-if(!SpeechRecognition){
-  transcriptDiv.textContent = "Your browser does not support Speech Recognition.";
-} else {
-  let recognition = new SpeechRecognition();
-  recognition.continuous = false; // mobile friendly
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
+  const readZone = document.getElementById("readZone");
+  const liveTranscriptDiv = document.getElementById("liveTranscript");
+  const statusBox = document.getElementById("statusBox");
+  let currentChunk = 0;
 
-  recognition.onstart = () => console.log("Recognition started");
+  // Create span for each chunk
+  textChunks.forEach((chunk, i)=>{
+    const span = document.createElement("span");
+    span.textContent = chunk + " ";
+    span.className = "chunk";
+    if(i===0) span.classList.add("current");
+    span.id = "chunk-"+i;
+    readZone.appendChild(span);
+  });
 
-  recognition.onresult = (event) => {
-    const transcript = Array.from(event.results)
-      .map(r => r[0].transcript)
-      .join(" ");
-    transcriptDiv.textContent = transcript;
-  };
+  const startBtn = document.getElementById("startBtn");
+  const checkbox = document.getElementById("agree");
+  const volumeCircle = document.getElementById("volumeCircle");
 
-  recognition.onerror = (e) => console.error("Recognition error:", e);
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    statusBox.textContent = "Your browser does not support Speech Recognition. Use Chrome.";
+    startBtn.disabled = true;
+    return;
+  }
 
-  startBtn.addEventListener("click", () => recognition.start());
-}
-</script>
+  let recognition, audioContext, analyser, microphone, dataArray;
+
+  function logStatus(msg){
+    statusBox.textContent = msg;
+  }
+
+  startBtn.addEventListener("click", async () => {
+    logStatus("Start button clicked");
+    startBtn.disabled = true;
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      logStatus("Microphone access granted");
+    } catch(e){
+      logStatus("Microphone access denied: " + e.message);
+      startBtn.disabled = false;
+      return;
+    }
+
+    // Volume circle animation
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    microphone = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    microphone.connect(analyser);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    function animateVolume(){
+      analyser.getByteFrequencyData(dataArray);
+      let sum=0; dataArray.forEach(v=>sum+=v);
+      const avg = sum/dataArray.length;
+      const scale = Math.min(1, avg/50);
+      volumeCircle.style.transform = `scale(${scale})`;
+      requestAnimationFrame(animateVolume);
+    }
+    animateVolume();
+
+    // Speech recognition
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang='en-US';
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => logStatus("Recognition started");
+
+    recognition.onresult = (event)=>{
+      if(event.results.length >
