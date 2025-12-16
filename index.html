@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Verified Terms</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            margin: 0;
+            padding: 0;
+        }
+
+        .card {
+            max-width: 420px;
+            margin: 60px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .instruction {
+            font-size: 14px;
+            color: #444;
+        }
+
+        .read-zone {
+            margin: 15px 0;
+            padding: 15px;
+            background: #fff7cc;
+            border-left: 4px solid #ffb700;
+            border-radius: 6px;
+        }
+
+            .read-zone.active {
+                animation: pulse 1.5s infinite;
+            }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 rgba(255,183,0,0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 10px rgba(255,183,0,0.6);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(255,183,0,0.3);
+            }
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 14px;
+            background: #007bff;
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+
+            button:disabled {
+                background: #aaa;
+                cursor: not-allowed;
+            }
+
+        #status {
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .agree {
+            display: block;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <h2>Terms & Agreement</h2>
+
+        <p class="instruction">
+            Please read the highlighted section aloud to continue.
+        </p>
+
+        <!-- Highlighted Read-Aloud Section -->
+        <div class="read-zone" id="readZone">
+            <strong>READ ALOUD SECTION</strong>
+            <p>
+                By using this service, you agree that your personal data may be collected,
+                processed, and stored in accordance with our Privacy Policy and Terms.
+            </p>
+        </div>
+
+        <button id="startBtn">🎤 Start Reading</button>
+
+        <div id="status">Waiting to start…</div>
+
+        <label class="agree">
+            <input type="checkbox" id="agree" disabled />
+            I have read and understood the Terms & Conditions
+        </label>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById("startBtn");
+        const statusText = document.getElementById("status");
+        const checkbox = document.getElementById("agree");
+        const readZone = document.getElementById("readZone");
+
+        let audioContext;
+        let analyser;
+        let microphone;
+        let voiceSeconds = 0;
+        const REQUIRED_SECONDS = 4; // time user must read aloud
+        const VOICE_THRESHOLD = 5;  // lower for mobile
+
+        startBtn.addEventListener("click", async () => {
+            startBtn.disabled = true;
+            readZone.classList.add("active");
+            statusText.textContent = "Listening… please read the highlighted text.";
+
+            // Create AudioContext for mobile-friendly
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === "suspended") await audioContext.resume();
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                analyser.fftSize = 512;
+
+                detectVoice();
+            } catch (error) {
+                statusText.textContent = "Microphone access denied. Please allow microphone.";
+                console.error(error);
+            }
+        });
+
+        function detectVoice() {
+            const data = new Uint8Array(analyser.frequencyBinCount);
+
+            function loop() {
+                analyser.getByteFrequencyData(data);
+                const volume = data.reduce((a, b) => a + b) / data.length;
+
+                // console.log(volume); // uncomment for debugging
+
+                if (volume > VOICE_THRESHOLD) {
+                    voiceSeconds += 0.1;
+                    statusText.textContent = `Reading detected: ${voiceSeconds.toFixed(1)}s`;
+                }
+
+                if (voiceSeconds >= REQUIRED_SECONDS) {
+                    readZone.classList.remove("active");
+                    statusText.textContent = "Reading completed ✔";
+                    checkbox.disabled = false;
+                    return;
+                }
+
+                requestAnimationFrame(loop);
+            }
+
+            loop();
+        }
+    </script>
+
+</body>
+</html>
