@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice Highlight Terms</title>
+<title>Voice Highlight Rules</title>
 <style>
 body { font-family: Arial; background:#f2f2f2; margin:0; padding:0; }
 .card { max-width:500px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
@@ -20,18 +20,19 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 <body>
 
 <div class="card">
-<h2>Terms & Agreement</h2>
-<p>Please read aloud. Words will be highlighted in real-time.</p>
+<h2>Rules & Agreement 8</h2>
+<p>Please read aloud. Words will be highlighted as you speak.</p>
 
 <div id="volumeCircle"></div>
 <div class="read-zone" id="readZone"></div>
 <button id="startBtn">🎤 Start Reading</button>
-<label class="agree"><input type="checkbox" id="agree" disabled> I have read and understood Terms</label>
+<label class="agree"><input type="checkbox" id="agree" disabled> I have read and understood the rules</label>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const text = `By using this service, you agree that your personal data may be collected, processed, and stored in accordance with our Privacy Policy and Terms.`;
+  // Simplified text content
+  const text = `Please read these rules carefully. By using this service, you agree to follow all rules and respect other users. Your information may be saved to improve your experience. Always be honest and polite. Thank you for cooperating.`;
 
   const readZone = document.getElementById("readZone");
   const words = text.split(" ");
@@ -105,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    recognition.onerror=(e)=>{ console.error(e); alert("Speech recognition error."); }
+    recognition.onerror=(e)=>{ console.error(e); alert("Speech recognition error. Check microphone permissions."); }
     recognition.start();
   });
 });
