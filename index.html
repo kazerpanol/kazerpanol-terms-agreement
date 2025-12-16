@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice-Highlight Terms</title>
+<title>Voice-Highlight Terms with Volume Meter</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -28,12 +28,33 @@ h2 {
 .instruction {
   font-size: 14px;
   color: #444;
+  margin-bottom: 10px;
+}
+
+#volumeMeter {
+  display: block;
+  margin: 0 auto 15px;
+  background: #f0f0f0;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  position: relative;
+}
+
+#volumeLevel {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #ffd966;
+  transform: scale(0);
+  transform-origin: center;
+  transition: transform 0.05s linear;
 }
 
 .read-zone {
   margin: 15px 0;
   padding: 15px;
-  background: #ffffff; /* neutral container */
+  background: #ffffff;
   border-left: 4px solid #ffb700;
   border-radius: 6px;
 }
@@ -42,12 +63,12 @@ h2 {
   padding: 2px 2px;
   margin: 0 2px;
   display: inline-block;
-  background-color: #f0f0f0; /* light gray for not-read */
+  background-color: #f0f0f0;
   border-radius: 3px;
 }
 
 .word.read {
-  background-color: #ffd966; /* yellow for read words */
+  background-color: #ffd966;
 }
 
 button {
@@ -77,8 +98,13 @@ button:disabled {
 <body>
 
 <div class="card">
-  <h2>Terms & Agreement 4</h2>
-  <p class="instruction">Please read the highlighted section aloud. Words you read will be highlighted in real-time.</p>
+  <h2>Terms & Agreement 5</h2>
+  <p class="instruction">Please read aloud. Spoken words will be highlighted in real-time.</p>
+
+  <!-- Volume Indicator -->
+  <div id="volumeMeter">
+    <div id="volumeLevel"></div>
+  </div>
 
   <div class="read-zone" id="readZone"></div>
 
@@ -91,24 +117,24 @@ button:disabled {
 </div>
 
 <script>
-// The text to read
+// Terms text
 const text = `By using this service, you agree that your personal data may be collected, processed, and stored in accordance with our Privacy Policy and Terms.`;
 
-// Split text into words and display them individually
+// Split text into words
 const readZone = document.getElementById("readZone");
 const words = text.split(" ");
 words.forEach((word, i) => {
   const span = document.createElement("span");
   span.textContent = word + " ";
-  span.className = "word";  // light gray initially
+  span.className = "word";
   span.id = "word-" + i;
   readZone.appendChild(span);
 });
 
 const startBtn = document.getElementById("startBtn");
 const checkbox = document.getElementById("agree");
+const volumeLevel = document.getElementById("volumeLevel");
 
-// Check for browser support
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (!SpeechRecognition) {
@@ -117,26 +143,26 @@ if (!SpeechRecognition) {
 }
 
 let recognition;
+let audioContext, analyser, microphone, dataArray;
 
-startBtn.addEventListener("click", () => {
+startBtn.addEventListener("click", async () => {
   startBtn.disabled = true;
 
+  // --- Start speech recognition ---
   recognition = new SpeechRecognition();
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
 
   recognition.onresult = (event) => {
-    // Combine all interim and final results
     const transcript = Array.from(event.results)
       .map(r => r[0].transcript)
       .join(" ")
       .toLowerCase()
-      .replace(/[^a-zA-Z ]/g, ""); // remove punctuation
+      .replace(/[^a-zA-Z ]/g, "");
 
     const spokenWords = transcript.split(/\s+/);
 
-    // Highlight words that match
     words.forEach((word, i) => {
       const cleanWord = word.replace(/[^a-zA-Z]/g, "").toLowerCase();
       const span = document.getElementById("word-" + i);
@@ -145,7 +171,6 @@ startBtn.addEventListener("click", () => {
       }
     });
 
-    // Unlock checkbox when all words are read
     const allRead = words.every((_, i) => document.getElementById("word-" + i).classList.contains("read"));
     if (allRead) {
       checkbox.disabled = false;
@@ -159,7 +184,34 @@ startBtn.addEventListener("click", () => {
   };
 
   recognition.start();
+
+  // --- Start Web Audio API for volume meter ---
+  try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    microphone = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    microphone.connect(analyser);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    animateVolume();
+  } catch (err) {
+    console.error(err);
+  }
 });
+
+function animateVolume() {
+  analyser.getByteFrequencyData(dataArray);
+  let sum = 0;
+  dataArray.forEach(v => sum += v);
+  const avg = sum / dataArray.length;
+
+  // Scale average to 0–1
+  const scale = Math.min(1, avg / 50); // adjust sensitivity
+  volumeLevel.style.transform = `scale(${scale})`;
+
+  requestAnimationFrame(animateVolume);
+}
 </script>
 
 </body>
