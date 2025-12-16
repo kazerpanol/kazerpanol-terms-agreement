@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice-Highlight Terms with Volume Meter</title>
+<title>Voice-Highlight Terms with Volume Circle</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -32,22 +32,18 @@ h2 {
 }
 
 #volumeMeter {
-  display: block;
-  margin: 0 auto 15px;
-  background: #f0f0f0;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 15px;
 }
 
-#volumeLevel {
+#volumeCircle {
   width: 50px;
   height: 50px;
   border-radius: 50%;
   background: #ffd966;
   transform: scale(0);
-  transform-origin: center;
   transition: transform 0.05s linear;
 }
 
@@ -63,12 +59,12 @@ h2 {
   padding: 2px 2px;
   margin: 0 2px;
   display: inline-block;
-  background-color: #f0f0f0;
+  background-color: #f0f0f0; /* not-read */
   border-radius: 3px;
 }
 
 .word.read {
-  background-color: #ffd966;
+  background-color: #ffd966; /* highlighted word */
 }
 
 button {
@@ -98,12 +94,12 @@ button:disabled {
 <body>
 
 <div class="card">
-  <h2>Terms & Agreement 5</h2>
+  <h2>Terms & Agreement</h2>
   <p class="instruction">Please read aloud. Spoken words will be highlighted in real-time.</p>
 
-  <!-- Volume Indicator -->
+  <!-- Volume Circle -->
   <div id="volumeMeter">
-    <div id="volumeLevel"></div>
+    <div id="volumeCircle"></div>
   </div>
 
   <div class="read-zone" id="readZone"></div>
@@ -120,7 +116,7 @@ button:disabled {
 // Terms text
 const text = `By using this service, you agree that your personal data may be collected, processed, and stored in accordance with our Privacy Policy and Terms.`;
 
-// Split text into words
+// Split text into words and display
 const readZone = document.getElementById("readZone");
 const words = text.split(" ");
 words.forEach((word, i) => {
@@ -133,7 +129,7 @@ words.forEach((word, i) => {
 
 const startBtn = document.getElementById("startBtn");
 const checkbox = document.getElementById("agree");
-const volumeLevel = document.getElementById("volumeLevel");
+const volumeCircle = document.getElementById("volumeCircle");
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -148,7 +144,7 @@ let audioContext, analyser, microphone, dataArray;
 startBtn.addEventListener("click", async () => {
   startBtn.disabled = true;
 
-  // --- Start speech recognition ---
+  // --- Speech recognition ---
   recognition = new SpeechRecognition();
   recognition.continuous = true;
   recognition.interimResults = true;
@@ -161,16 +157,16 @@ startBtn.addEventListener("click", async () => {
       .toLowerCase()
       .replace(/[^a-zA-Z ]/g, "");
 
-    const spokenWords = transcript.split(/\s+/);
-
+    // Highlight words if they appear anywhere in transcript
     words.forEach((word, i) => {
       const cleanWord = word.replace(/[^a-zA-Z]/g, "").toLowerCase();
       const span = document.getElementById("word-" + i);
-      if (spokenWords.includes(cleanWord)) {
+      if (transcript.includes(cleanWord)) {
         span.classList.add("read");
       }
     });
 
+    // Unlock checkbox
     const allRead = words.every((_, i) => document.getElementById("word-" + i).classList.contains("read"));
     if (allRead) {
       checkbox.disabled = false;
@@ -183,36 +179,4 @@ startBtn.addEventListener("click", async () => {
     alert("Speech recognition error. Make sure your microphone is allowed.");
   };
 
-  recognition.start();
-
-  // --- Start Web Audio API for volume meter ---
-  try {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    microphone = audioContext.createMediaStreamSource(stream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    microphone.connect(analyser);
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
-    animateVolume();
-  } catch (err) {
-    console.error(err);
-  }
-});
-
-function animateVolume() {
-  analyser.getByteFrequencyData(dataArray);
-  let sum = 0;
-  dataArray.forEach(v => sum += v);
-  const avg = sum / dataArray.length;
-
-  // Scale average to 0–1
-  const scale = Math.min(1, avg / 50); // adjust sensitivity
-  volumeLevel.style.transform = `scale(${scale})`;
-
-  requestAnimationFrame(animateVolume);
-}
-</script>
-
-</body>
-</html>
+  recognition.start()
