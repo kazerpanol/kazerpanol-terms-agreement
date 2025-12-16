@@ -3,164 +3,90 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice-Highlight Terms</title>
+<title>Voice Highlight Terms</title>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f2f2f2;
-  margin: 0;
-  padding: 0;
-}
-
-.card {
-  max-width: 500px;
-  margin: 50px auto;
-  padding: 20px;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-h2 {
-  margin-top: 0;
-}
-
-.instruction {
-  font-size: 14px;
-  color: #444;
-  margin-bottom: 10px;
-}
-
-#volumeMeter {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-#volumeCircle {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: #ffd966;
-  transform: scale(0);
-  transition: transform 0.05s linear;
-}
-
-.read-zone {
-  margin: 15px 0;
-  padding: 15px;
-  background: #ffffff;
-  border-left: 4px solid #ffb700;
-  border-radius: 6px;
-}
-
-.word {
-  display: inline-block;
-  margin: 0 2px;
-  padding: 2px 2px;
-  background-color: #f0f0f0; /* not-read */
-  border-radius: 3px;
-  color: #000; /* ensure visibility */
-}
-
-.word.read {
-  background-color: #ffd966; /* highlighted word */
-}
-
-button {
-  margin-top: 10px;
-  padding: 10px 14px;
-  background: #007bff;
-  border: none;
-  color: white;
-  border-radius: 6px;
-  cursor: pointer;
-  width: 100%;
-  font-size: 16px;
-}
-
-button:disabled {
-  background: #aaa;
-  cursor: not-allowed;
-}
-
-.agree {
-  display: block;
-  margin-top: 20px;
-  font-size: 14px;
-}
+body { font-family: Arial; background:#f2f2f2; }
+.card { max-width:500px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; }
+.read-zone { padding:15px; background:#fff; border-left:4px solid #ffb700; border-radius:6px; }
+.word { display:inline-block; margin:0 2px; padding:2px 2px; background:#f0f0f0; border-radius:3px; color:#000; }
+.word.read { background:#ffd966; }
+#volumeCircle { width:50px; height:50px; border-radius:50%; background:#ffd966; transform:scale(0); transition:transform 0.05s linear; margin:0 auto; display:block; }
+button { padding:10px; margin-top:10px; width:100%; background:#007bff; color:#fff; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
+button:disabled { background:#aaa; cursor:not-allowed; }
+.agree { margin-top:20px; display:block; }
 </style>
 </head>
 <body>
 
 <div class="card">
-  <h2>Terms & Agreement</h2>
-  <p class="instruction">Please read aloud. Words you read will be highlighted in real-time.</p>
-
-  <!-- Volume Circle -->
-  <div id="volumeMeter">
-    <div id="volumeCircle"></div>
-  </div>
-
-  <div class="read-zone" id="readZone"></div>
-
-  <button id="startBtn">🎤 Start Reading</button>
-
-  <label class="agree">
-    <input type="checkbox" id="agree" disabled />
-    I have read and understood the Terms & Conditions
-  </label>
+<h2>Terms & Agreement</h2>
+<p>Please read aloud. Words will be highlighted.</p>
+<div id="volumeCircle"></div>
+<div class="read-zone" id="readZone"></div>
+<button id="startBtn">🎤 Start Reading</button>
+<label class="agree"><input type="checkbox" id="agree" disabled> I have read and understood Terms</label>
 </div>
 
 <script>
-// Terms text
 const text = `By using this service, you agree that your personal data may be collected, processed, and stored in accordance with our Privacy Policy and Terms.`;
-
-// Split text into words and display
 const readZone = document.getElementById("readZone");
 const words = text.split(" ");
-words.forEach((word, i) => {
-  const span = document.createElement("span");
-  span.textContent = word + " ";
-  span.className = "word";
-  span.id = "word-" + i;
+words.forEach((word,i)=>{
+  const span=document.createElement("span");
+  span.textContent=word+" ";
+  span.className="word";
+  span.id="word-"+i;
   readZone.appendChild(span);
 });
 
-const startBtn = document.getElementById("startBtn");
-const checkbox = document.getElementById("agree");
-const volumeCircle = document.getElementById("volumeCircle");
+const startBtn=document.getElementById("startBtn");
+const checkbox=document.getElementById("agree");
+const volumeCircle=document.getElementById("volumeCircle");
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition,audioContext,analyser,microphone,dataArray;
 
-if (!SpeechRecognition) {
-  startBtn.disabled = true;
-  alert("Your browser does not support Speech Recognition. Use Chrome on Android or Desktop.");
-}
-
-let recognition;
-let audioContext, analyser, microphone, dataArray;
-
-startBtn.addEventListener("click", async () => {
-  startBtn.disabled = true;
-
-  // --- Request microphone access first ---
+startBtn.addEventListener("click", async()=>{
   let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (err) {
-    alert("Microphone access is required to start reading aloud.");
-    console.error(err);
-    startBtn.disabled = false;
-    return;
-  }
+  try { stream=await navigator.mediaDevices.getUserMedia({audio:true}); } 
+  catch(e){ alert("Microphone access required"); return; }
+  startBtn.disabled=true;
 
-  // --- Initialize Web Audio API for volume circle ---
-  audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  microphone = audioContext.createMediaStreamSource(stream);
-  analyser = audioContext.createAnalyser();
-  analyser.fftSize = 256;
+  // Volume
+  audioContext=new (window.AudioContext||window.webkitAudioContext)();
+  microphone=audioContext.createMediaStreamSource(stream);
+  analyser=audioContext.createAnalyser();
+  analyser.fftSize=256;
   microphone.connect(analyser);
-  dataArray = new Uint8Array(analyser.frequencyBinCount);
-  a
+  dataArray=new Uint8Array(analyser.frequencyBinCount);
+  function animateVolume(){
+    analyser.getByteFrequencyData(dataArray);
+    let sum=0; dataArray.forEach(v=>sum+=v);
+    const avg=sum/dataArray.length;
+    volumeCircle.style.transform=`scale(${Math.min(1,avg/50)})`;
+    requestAnimationFrame(animateVolume);
+  }
+  animateVolume();
+
+  // Speech recognition
+  if(!SpeechRecognition){ alert("Browser not supported"); return; }
+  recognition=new SpeechRecognition();
+  recognition.continuous=true;
+  recognition.interimResults=true;
+  recognition.lang='en-US';
+  recognition.onresult=(event)=>{
+    const transcript=Array.from(event.results).map(r=>r[0].transcript).join(" ").toLowerCase().replace(/[^a-z ]/g,"");
+    words.forEach((word,i)=>{
+      const clean=word.replace(/[^a-z]/g,"").toLowerCase();
+      if(transcript.includes(clean)) document.getElementById("word-"+i).classList.add("read");
+    });
+    const allRead=words.every((_,i)=>document.getElementById("word-"+i).classList.contains("read"));
+    if(allRead){ checkbox.disabled=false; recognition.stop(); }
+  };
+  recognition.onerror=(e)=>{ console.error(e); alert("Speech recognition error"); }
+  recognition.start();
+});
+</script>
+
+</body>
+</html>
