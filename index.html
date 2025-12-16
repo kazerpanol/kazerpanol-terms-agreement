@@ -20,7 +20,7 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 <body>
 
 <div class="card">
-<h2>Rules & Agreement 8</h2>
+<h2>Rules & Agreement</h2>
 <p>Please read aloud. Words will be highlighted as you speak.</p>
 
 <div id="volumeCircle"></div>
@@ -31,7 +31,7 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // Simplified text content
+  // Simplified text for easier recognition
   const text = `Please read these rules carefully. By using this service, you agree to follow all rules and respect other users. Your information may be saved to improve your experience. Always be honest and polite. Thank you for cooperating.`;
 
   const readZone = document.getElementById("readZone");
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let recognition,audioContext,analyser,microphone,dataArray;
 
   startBtn.addEventListener("click", async ()=>{
-    // Request microphone access inside click
+    // Request microphone access
     let stream;
     try { 
       stream = await navigator.mediaDevices.getUserMedia({audio:true}); 
@@ -91,12 +91,14 @@ document.addEventListener("DOMContentLoaded", () => {
         .map(r=>r[0].transcript)
         .join(" ")
         .toLowerCase()
-        .replace(/[^a-z ]/g,"");
+        .replace(/[^a-z ]/g," "); // keep spaces
 
       words.forEach((word,i)=>{
         const clean = word.replace(/[^a-z]/g,"").toLowerCase();
         const span = document.getElementById("word-"+i);
-        if(clean.length>0 && transcript.includes(clean)) span.classList.add("read");
+        if(clean.length>0 && transcript.split(" ").includes(clean)){
+          span.classList.add("read");
+        }
       });
 
       const allRead = words.every((_,i)=>document.getElementById("word-"+i).classList.contains("read"));
@@ -106,11 +108,4 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    recognition.onerror=(e)=>{ console.error(e); alert("Speech recognition error. Check microphone permissions."); }
-    recognition.start();
-  });
-});
-</script>
-
-</body>
-</html>
+    recognition.
