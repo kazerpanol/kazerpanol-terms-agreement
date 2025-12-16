@@ -1,184 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Verified Terms</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice-Highlight Terms</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f2f2f2;
+  margin: 0;
+  padding: 0;
+}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f2f2f2;
-            margin: 0;
-            padding: 0;
-        }
+.card {
+  max-width: 500px;
+  margin: 50px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
 
-        .card {
-            max-width: 420px;
-            margin: 60px auto;
-            padding: 20px;
-            background: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
+h2 {
+  margin-top: 0;
+}
 
-        h2 {
-            margin-top: 0;
-        }
+.instruction {
+  font-size: 14px;
+  color: #444;
+}
 
-        .instruction {
-            font-size: 14px;
-            color: #444;
-        }
+.read-zone {
+  margin: 15px 0;
+  padding: 15px;
+  background: #fff7cc;
+  border-left: 4px solid #ffb700;
+  border-radius: 6px;
+}
 
-        .read-zone {
-            margin: 15px 0;
-            padding: 15px;
-            background: #fff7cc;
-            border-left: 4px solid #ffb700;
-            border-radius: 6px;
-        }
+.word {
+  padding: 2px 0;
+  margin: 0 2px;
+  display: inline-block;
+}
 
-            .read-zone.active {
-                animation: pulse 1.5s infinite;
-            }
+.word.read {
+  background-color: #ffd966;
+  border-radius: 3px;
+}
 
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 rgba(255,183,0,0.3);
-            }
+button {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #007bff;
+  border: none;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 16px;
+}
 
-            50% {
-                box-shadow: 0 0 10px rgba(255,183,0,0.6);
-            }
+button:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
 
-            100% {
-                box-shadow: 0 0 0 rgba(255,183,0,0.3);
-            }
-        }
-
-        button {
-            margin-top: 10px;
-            padding: 10px 14px;
-            background: #007bff;
-            border: none;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-        }
-
-            button:disabled {
-                background: #aaa;
-                cursor: not-allowed;
-            }
-
-        #status {
-            margin-top: 10px;
-            font-size: 13px;
-        }
-
-        .agree {
-            display: block;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-    </style>
+.agree {
+  display: block;
+  margin-top: 20px;
+  font-size: 14px;
+}
+</style>
 </head>
-
 <body>
 
-    <div class="card">
-        <h2>Terms & Agreement</h2>
+<div class="card">
+  <h2>Terms & Agreement</h2>
+  <p class="instruction">Please read the highlighted section aloud. Words you read will be highlighted in real-time.</p>
 
-        <p class="instruction">
-            Please read the highlighted section aloud to continue.
-        </p>
+  <div class="read-zone" id="readZone"></div>
 
-        <!-- Highlighted Read-Aloud Section -->
-        <div class="read-zone" id="readZone">
-            <strong>READ ALOUD SECTION</strong>
-            <p>
-                By using this service, you agree that your personal data may be collected,
-                processed, and stored in accordance with our Privacy Policy and Terms.
-            </p>
-        </div>
+  <button id="startBtn">🎤 Start Reading</button>
 
-        <button id="startBtn">🎤 Start Reading</button>
+  <label class="agree">
+    <input type="checkbox" id="agree" disabled />
+    I have read and understood the Terms & Conditions
+  </label>
+</div>
 
-        <div id="status">Waiting to start…</div>
+<script>
+// The text to read
+const text = `By using this service, you agree that your personal data may be collected, processed, and stored in accordance with our Privacy Policy and Terms.`;
 
-        <label class="agree">
-            <input type="checkbox" id="agree" disabled />
-            I have read and understood the Terms & Conditions
-        </label>
-    </div>
+// Split text into words and display them individually
+const readZone = document.getElementById("readZone");
+const words = text.split(" ");
+words.forEach((word, i) => {
+  const span = document.createElement("span");
+  span.textContent = word + " ";
+  span.className = "word";
+  span.id = "word-" + i;
+  readZone.appendChild(span);
+});
 
-    <script>
-        const startBtn = document.getElementById("startBtn");
-        const statusText = document.getElementById("status");
-        const checkbox = document.getElementById("agree");
-        const readZone = document.getElementById("readZone");
+const startBtn = document.getElementById("startBtn");
+const checkbox = document.getElementById("agree");
 
-        let audioContext;
-        let analyser;
-        let microphone;
-        let voiceSeconds = 0;
-        const REQUIRED_SECONDS = 4; // time user must read aloud
-        const VOICE_THRESHOLD = 5;  // lower for mobile
+// Check for browser support
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-        startBtn.addEventListener("click", async () => {
-            startBtn.disabled = true;
-            readZone.classList.add("active");
-            statusText.textContent = "Listening… please read the highlighted text.";
+if (!SpeechRecognition) {
+  startBtn.disabled = true;
+  alert("Your browser does not support Speech Recognition. Use Chrome on Android or Desktop.");
+}
 
-            // Create AudioContext for mobile-friendly
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioContext.state === "suspended") await audioContext.resume();
+let recognition;
 
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+startBtn.addEventListener("click", () => {
+  startBtn.disabled = true;
 
-                analyser = audioContext.createAnalyser();
-                microphone = audioContext.createMediaStreamSource(stream);
-                microphone.connect(analyser);
-                analyser.fftSize = 512;
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
 
-                detectVoice();
-            } catch (error) {
-                statusText.textContent = "Microphone access denied. Please allow microphone.";
-                console.error(error);
-            }
-        });
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map(r => r[0].transcript)
+      .join(" ")
+      .toLowerCase();
 
-        function detectVoice() {
-            const data = new Uint8Array(analyser.frequencyBinCount);
+    // Highlight words that match
+    words.forEach((word, i) => {
+      const span = document.getElementById("word-" + i);
+      if (transcript.includes(word.replace(/[^a-zA-Z]/g, "").toLowerCase())) {
+        span.classList.add("read");
+      }
+    });
 
-            function loop() {
-                analyser.getByteFrequencyData(data);
-                const volume = data.reduce((a, b) => a + b) / data.length;
+    // If all words are read, unlock checkbox
+    const allRead = words.every((_, i) => document.getElementById("word-" + i).classList.contains("read"));
+    if (allRead) {
+      checkbox.disabled = false;
+      recognition.stop();
+    }
+  };
 
-                // console.log(volume); // uncomment for debugging
+  recognition.onerror = (e) => {
+    console.error(e);
+    alert("Speech recognition error. Make sure your microphone is allowed.");
+  };
 
-                if (volume > VOICE_THRESHOLD) {
-                    voiceSeconds += 0.1;
-                    statusText.textContent = `Reading detected: ${voiceSeconds.toFixed(1)}s`;
-                }
-
-                if (voiceSeconds >= REQUIRED_SECONDS) {
-                    readZone.classList.remove("active");
-                    statusText.textContent = "Reading completed ✔";
-                    checkbox.disabled = false;
-                    return;
-                }
-
-                requestAnimationFrame(loop);
-            }
-
-            loop();
-        }
-    </script>
+  recognition.start();
+});
+</script>
 
 </body>
 </html>
