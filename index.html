@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice Highlight Rules</title>
+<title>Voice Highlight by Chunk</title>
 <style>
 body { font-family: Arial; background:#f2f2f2; margin:0; padding:0; }
 .card { max-width:500px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
 h2{margin-top:0;}
 .read-zone { padding:15px; background:#fff; border-left:4px solid #ffb700; border-radius:6px; min-height:50px; }
-.word { display:inline-block; margin:0 2px; padding:2px 2px; background:#f0f0f0; border-radius:3px; color:#000; }
-.word.read { background:#ffd966; }
-#volumeCircle { width:50px; height:50px; border-radius:50%; background:#ffd966; transform:scale(0); transition:transform 0.05s linear; margin:0 auto 15px; display:block; }
+.chunk { display:inline-block; margin:0 2px; padding:2px 2px; background:#f0f0f0; border-radius:3px; color:#000; }
+.chunk.current { background:#ffd966; font-weight:bold; }
+.chunk.read { background:#ffe699; }
+#volumeCircle { width:50px; height:50px; border-radius:50%; background:#ffd966; transform:scale(0); margin:0 auto 15px; display:block; transition: transform 0.05s linear; }
 button { padding:10px; margin-top:10px; width:100%; background:#007bff; color:#fff; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
 button:disabled { background:#aaa; cursor:not-allowed; }
 .agree { margin-top:20px; display:block; }
@@ -20,8 +21,8 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 <body>
 
 <div class="card">
-<h2>Rules & Agreement 9</h2>
-<p>Please read aloud. Words will highlight as you speak.</p>
+<h2>Rules & Agreement 10</h2>
+<p>Read aloud. Current chunk is highlighted.</p>
 
 <div id="volumeCircle"></div>
 <div class="read-zone" id="readZone"></div>
@@ -31,15 +32,25 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const text = `Please read these rules carefully. By using this service, you agree to follow all rules and respect other users. Your information may be saved to improve your experience. Always be honest and polite. Thank you for cooperating.`;
+  const textChunks = [
+    "Please read these rules carefully.",
+    "By using this service, you agree to follow all rules.",
+    "Respect other users.",
+    "Your information may be saved to improve your experience.",
+    "Always be honest and polite.",
+    "Thank you for cooperating."
+  ];
 
   const readZone = document.getElementById("readZone");
-  const words = text.split(" ");
-  words.forEach((word,i)=>{
-    const span=document.createElement("span");
-    span.textContent=word+" ";
-    span.className="word";
-    span.id="word-"+i;
+  let currentChunk = 0;
+
+  // Create span for each chunk
+  textChunks.forEach((chunk, i)=>{
+    const span = document.createElement("span");
+    span.textContent = chunk + " ";
+    span.className = "chunk";
+    if(i===0) span.classList.add("current");
+    span.id = "chunk-"+i;
     readZone.appendChild(span);
   });
 
@@ -48,44 +59,45 @@ document.addEventListener("DOMContentLoaded", () => {
   const volumeCircle = document.getElementById("volumeCircle");
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition,audioContext,analyser,microphone,dataArray;
+  if(!SpeechRecognition){
+    alert("Your browser does not support Speech Recognition. Use Chrome.");
+    startBtn.disabled = true;
+    return;
+  }
 
-  startBtn.addEventListener("click", async ()=>{
+  let recognition, audioContext, analyser, microphone, dataArray;
+
+  startBtn.addEventListener("click", async () => {
     startBtn.disabled = true;
 
-    // Request microphone inside click
     let stream;
-    try { 
-      stream = await navigator.mediaDevices.getUserMedia({audio:true}); 
-    } catch(e){ 
-      alert("Microphone access required."); 
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch(e){
+      alert("Microphone access required.");
       startBtn.disabled = false;
-      return; 
+      return;
     }
 
     // Volume circle
-    try {
-      audioContext = new (window.AudioContext||window.webkitAudioContext)();
-      microphone = audioContext.createMediaStreamSource(stream);
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      microphone.connect(analyser);
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-      function animateVolume(){
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0; dataArray.forEach(v=>sum+=v);
-        const avg = sum / dataArray.length;
-        const scale = Math.min(1, avg/50);
-        volumeCircle.style.transform = `scale(${scale})`;
-        requestAnimationFrame(animateVolume);
-      }
-      animateVolume();
-    } catch(e){
-      console.error(e);
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    microphone = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    microphone.connect(analyser);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    function animateVolume(){
+      analyser.getByteFrequencyData(dataArray);
+      let sum=0; dataArray.forEach(v=>sum+=v);
+      const avg = sum/dataArray.length;
+      const scale = Math.min(1, avg/50);
+      volumeCircle.style.transform = `scale(${scale})`;
+      requestAnimationFrame(animateVolume);
     }
+    animateVolume();
 
     // Speech recognition
-    if(!SpeechRecognition){ alert("Speech recognition not supported."); return; }
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -93,27 +105,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     recognition.onresult = (event)=>{
       const transcript = Array.from(event.results)
-        .map(r=>r[0].transcript)
+        .map(r => r[0].transcript)
         .join(" ")
         .toLowerCase()
-        .replace(/[^a-z ]/g," "); // keep spaces
+        .replace(/[^a-z ]/g," ");
 
-      words.forEach((word,i)=>{
-        const clean = word.replace(/[^a-z]/g,"").toLowerCase();
-        const span = document.getElementById("word-"+i);
-        if(clean.length>0 && transcript.split(" ").includes(clean)){
-          span.classList.add("read");
+      const currentText = textChunks[currentChunk].toLowerCase().replace(/[^a-z ]/g,"");
+      if(transcript.includes(currentText)){
+        const span = document.getElementById("chunk-"+currentChunk);
+        span.classList.remove("current");
+        span.classList.add("read");
+        currentChunk++;
+        if(currentChunk<textChunks.length){
+          document.getElementById("chunk-"+currentChunk).classList.add("current");
+        } else {
+          checkbox.disabled = false;
+          recognition.stop();
         }
-      });
-
-      const allRead = words.every((_,i)=>document.getElementById("word-"+i).classList.contains("read"));
-      if(allRead){
-        checkbox.disabled=false;
-        recognition.stop();
       }
     };
 
-    recognition.onerror=(e)=>{ console.error(e); alert("Speech recognition error. Check microphone permissions."); }
+    recognition.onerror = (e)=>{ console.error(e); alert("Recognition error. Check microphone."); }
     recognition.start();
   });
 });
