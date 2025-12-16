@@ -110,7 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Speech recognition
     recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang='en-US';
     recognition.maxAlternatives = 1;
@@ -161,3 +161,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </body>
 </html>
+
