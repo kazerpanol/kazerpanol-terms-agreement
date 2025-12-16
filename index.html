@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice Highlight by Chunk</title>
+<title>Voice Highlight with Live Transcript</title>
 <style>
 body { font-family: Arial; background:#f2f2f2; margin:0; padding:0; }
 .card { max-width:500px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
@@ -13,6 +13,7 @@ h2{margin-top:0;}
 .chunk.current { background:#ffd966; font-weight:bold; }
 .chunk.read { background:#ffe699; }
 #volumeCircle { width:50px; height:50px; border-radius:50%; background:#ffd966; transform:scale(0); margin:0 auto 15px; display:block; transition: transform 0.05s linear; }
+#liveTranscript { margin-top:15px; padding:10px; background:#e0e0e0; border-radius:6px; min-height:40px; font-style:italic; }
 button { padding:10px; margin-top:10px; width:100%; background:#007bff; color:#fff; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
 button:disabled { background:#aaa; cursor:not-allowed; }
 .agree { margin-top:20px; display:block; }
@@ -21,11 +22,12 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 <body>
 
 <div class="card">
-<h2>Rules & Agreement 10</h2>
-<p>Read aloud. Current chunk is highlighted.</p>
+<h2>Rules & Agreement 11</h2>
+<p>Read aloud. Current chunk is highlighted. Live transcript shows what the app hears.</p>
 
 <div id="volumeCircle"></div>
 <div class="read-zone" id="readZone"></div>
+<div id="liveTranscript">Your speech will appear here...</div>
 <button id="startBtn">🎤 Start Reading</button>
 <label class="agree"><input type="checkbox" id="agree" disabled> I have read and understood the rules</label>
 </div>
@@ -42,6 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   const readZone = document.getElementById("readZone");
+  const liveTranscriptDiv = document.getElementById("liveTranscript");
   let currentChunk = 0;
 
   // Create span for each chunk
@@ -79,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Volume circle
+    // Volume circle animation
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     microphone = audioContext.createMediaStreamSource(stream);
     analyser = audioContext.createAnalyser();
@@ -110,6 +113,9 @@ document.addEventListener("DOMContentLoaded", () => {
         .toLowerCase()
         .replace(/[^a-z ]/g," ");
 
+      // Show live transcript
+      liveTranscriptDiv.textContent = transcript;
+
       const currentText = textChunks[currentChunk].toLowerCase().replace(/[^a-z ]/g,"");
       if(transcript.includes(currentText)){
         const span = document.getElementById("chunk-"+currentChunk);
@@ -125,7 +131,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    recognition.onerror = (e)=>{ console.error(e); alert("Recognition error. Check microphone."); }
+    recognition.onerror = (e)=>{
+      console.error(e);
+      alert("Recognition error. Check microphone and use Chrome.");
+    };
+
     recognition.start();
   });
 });
