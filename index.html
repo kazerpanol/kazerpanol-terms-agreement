@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice Highlight with Status</title>
+<title>Voice Highlight with Real-Time Detection</title>
 <style>
-body { font-family: Arial; background:#f2f2f2; margin:0; padding:0; }
+body { font-family: Arial; background:#f2f2f2; margin:0; padding:0; transition: background 0.1s; }
 .card { max-width:500px; margin:50px auto; padding:20px; background:#fff; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
 h2{margin-top:0;}
 .read-zone { padding:15px; background:#fff; border-left:4px solid #ffb700; border-radius:6px; min-height:50px; }
@@ -23,7 +23,7 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 
 <div class="card">
 <h2>Rules & Agreement</h2>
-<p>Read aloud. Current chunk is highlighted. Live transcript shows what the app hears.</p>
+<p>Read aloud. Current chunk is highlighted. Live transcript and status show what the app hears.</p>
 
 <div id="volumeCircle"></div>
 <div class="read-zone" id="readZone"></div>
@@ -36,12 +36,9 @@ button:disabled { background:#aaa; cursor:not-allowed; }
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const textChunks = [
-    "Please read these rules carefully.",
-    "By using this service, you agree to follow all rules.",
-    "Respect other users.",
-    "Your information may be saved to improve your experience.",
-    "Always be honest and polite.",
-    "Thank you for cooperating."
+    "Hello world",
+    "I am testing voice recognition",
+    "Please speak slowly and clearly"
   ];
 
   const readZone = document.getElementById("readZone");
@@ -85,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       logStatus("Microphone access granted");
     } catch(e){
-      logStatus("Microphone access denied or error: " + e.message);
+      logStatus("Microphone access denied: " + e.message);
       startBtn.disabled = false;
       return;
     }
@@ -113,32 +110,36 @@ document.addEventListener("DOMContentLoaded", () => {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang='en-US';
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => logStatus("Recognition started");
 
     recognition.onresult = (event)=>{
-      const transcript = Array.from(event.results)
-        .map(r => r[0].transcript)
-        .join(" ")
-        .toLowerCase()
-        .replace(/[^a-z ]/g," ");
+      if(event.results.length > 0){
+        const transcript = Array.from(event.results)
+          .map(r => r[0].transcript)
+          .join(" ")
+          .toLowerCase()
+          .replace(/[^a-z ]/g," ");
 
-      // Show live transcript
-      liveTranscriptDiv.textContent = transcript;
-      logStatus("Transcript updated");
+        liveTranscriptDiv.textContent = transcript;
+        logStatus("Speech detected");
+        document.body.style.background = "#d0ffd0"; // flash green
+        setTimeout(()=>document.body.style.background="#f2f2f2",100);
 
-      const currentText = textChunks[currentChunk].toLowerCase().replace(/[^a-z ]/g,"");
-      if(transcript.includes(currentText)){
-        const span = document.getElementById("chunk-"+currentChunk);
-        span.classList.remove("current");
-        span.classList.add("read");
-        currentChunk++;
-        if(currentChunk<textChunks.length){
-          document.getElementById("chunk-"+currentChunk).classList.add("current");
-        } else {
-          checkbox.disabled = false;
-          recognition.stop();
-          logStatus("All chunks read! Recognition stopped.");
+        const currentText = textChunks[currentChunk].toLowerCase().replace(/[^a-z ]/g,"");
+        if(transcript.includes(currentText)){
+          const span = document.getElementById("chunk-"+currentChunk);
+          span.classList.remove("current");
+          span.classList.add("read");
+          currentChunk++;
+          if(currentChunk<textChunks.length){
+            document.getElementById("chunk-"+currentChunk).classList.add("current");
+          } else {
+            checkbox.disabled = false;
+            recognition.stop();
+            logStatus("All chunks read! Recognition stopped.");
+          }
         }
       }
     };
