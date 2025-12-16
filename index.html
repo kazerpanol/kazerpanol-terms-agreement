@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voice-Highlight Terms with Volume Circle</title>
+<title>Voice-Highlight Terms</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -56,11 +56,12 @@ h2 {
 }
 
 .word {
-  padding: 2px 2px;
-  margin: 0 2px;
   display: inline-block;
+  margin: 0 2px;
+  padding: 2px 2px;
   background-color: #f0f0f0; /* not-read */
   border-radius: 3px;
+  color: #000; /* ensure visibility */
 }
 
 .word.read {
@@ -95,7 +96,7 @@ button:disabled {
 
 <div class="card">
   <h2>Terms & Agreement</h2>
-  <p class="instruction">Please read aloud. Spoken words will be highlighted in real-time.</p>
+  <p class="instruction">Please read aloud. Words you read will be highlighted in real-time.</p>
 
   <!-- Volume Circle -->
   <div id="volumeMeter">
@@ -144,39 +145,22 @@ let audioContext, analyser, microphone, dataArray;
 startBtn.addEventListener("click", async () => {
   startBtn.disabled = true;
 
-  // --- Speech recognition ---
-  recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
+  // --- Request microphone access first ---
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    alert("Microphone access is required to start reading aloud.");
+    console.error(err);
+    startBtn.disabled = false;
+    return;
+  }
 
-  recognition.onresult = (event) => {
-    const transcript = Array.from(event.results)
-      .map(r => r[0].transcript)
-      .join(" ")
-      .toLowerCase()
-      .replace(/[^a-zA-Z ]/g, "");
-
-    // Highlight words if they appear anywhere in transcript
-    words.forEach((word, i) => {
-      const cleanWord = word.replace(/[^a-zA-Z]/g, "").toLowerCase();
-      const span = document.getElementById("word-" + i);
-      if (transcript.includes(cleanWord)) {
-        span.classList.add("read");
-      }
-    });
-
-    // Unlock checkbox
-    const allRead = words.every((_, i) => document.getElementById("word-" + i).classList.contains("read"));
-    if (allRead) {
-      checkbox.disabled = false;
-      recognition.stop();
-    }
-  };
-
-  recognition.onerror = (e) => {
-    console.error(e);
-    alert("Speech recognition error. Make sure your microphone is allowed.");
-  };
-
-  recognition.start()
+  // --- Initialize Web Audio API for volume circle ---
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  microphone = audioContext.createMediaStreamSource(stream);
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+  microphone.connect(analyser);
+  dataArray = new Uint8Array(analyser.frequencyBinCount);
+  a
