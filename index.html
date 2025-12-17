@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Voice-Controlled Slider</title>
+
 <style>
   body {
     font-family: 'Segoe UI', sans-serif;
@@ -20,31 +21,34 @@
     100% { background-position: 0% 50%; }
   }
 
-  h1 { color: #fff; text-shadow: 1px 1px 5px rgba(0,0,0,0.3); }
+  h1 {
+    color: #fff;
+    text-shadow: 1px 1px 5px rgba(0,0,0,0.3);
+  }
 
   #slider {
     width: 80%;
     margin: 30px 0;
     height: 15px;
-    -webkit-appearance: none;
-    background: #ddd;
     border-radius: 10px;
-    transition: background 0.3s;
+    appearance: none;
+    background: linear-gradient(to right, green 0%, green 50%, #ddd 50%, #ddd 100%);
+    transition: background 0.15s;
   }
 
   #slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
+    appearance: none;
     width: 25px;
     height: 25px;
-    background: #ff6f61;
+    background: #ffffff;
+    border: 3px solid #ff6f61;
     border-radius: 50%;
     cursor: pointer;
-    transition: transform 0.2s, background 0.3s;
+    transition: transform 0.2s;
   }
 
   #slider::-webkit-slider-thumb:hover {
     transform: scale(1.2);
-    background: #ff3b2e;
   }
 
   button {
@@ -64,16 +68,19 @@
     background: #ff3b2e;
   }
 
-  #savedValue { font-weight: bold; color: #00ff88; margin-top: 15px; }
-
   #value {
     font-weight: bold;
     color: #fff;
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
   }
 
+  #savedValue {
+    font-weight: bold;
+    color: #00ff88;
+    margin-top: 15px;
+  }
 </style>
 </head>
+
 <body>
 
 <h1>Voice-Controlled Slider</h1>
@@ -97,63 +104,83 @@ let savedDisplay = document.getElementById('savedValue');
 let running = false;
 let animationId = null;
 
-// Update slider based on microphone volume
+// 🎨 Change slider color based on volume
+function updateSliderColor(value) {
+  let color;
+
+  if (value < 33) color = 'green';
+  else if (value < 66) color = 'yellow';
+  else color = 'red';
+
+  slider.style.background = `
+    linear-gradient(
+      to right,
+      ${color} 0%,
+      ${color} ${value}%,
+      #ddd ${value}%,
+      #ddd 100%
+    )
+  `;
+}
+
+// 🎙️ Update slider from microphone
 function updateSlider() {
-    analyser.getByteTimeDomainData(dataArray);
-    let sum = 0;
-    for(let i=0; i<dataArray.length; i++){
-        let val = (dataArray[i] - 128)/128;
-        sum += val * val;
-    }
-    let rms = Math.sqrt(sum / dataArray.length);
-    let sliderValue = Math.min(100, Math.max(0, Math.floor(rms * 500)));
-    slider.value = sliderValue;
-    valueDisplay.textContent = sliderValue;
+  analyser.getByteTimeDomainData(dataArray);
+  let sum = 0;
 
-    animationId = requestAnimationFrame(updateSlider);
+  for (let i = 0; i < dataArray.length; i++) {
+    let val = (dataArray[i] - 128) / 128;
+    sum += val * val;
+  }
+
+  let rms = Math.sqrt(sum / dataArray.length);
+  let sliderValue = Math.min(100, Math.max(0, Math.floor(rms * 500)));
+
+  slider.value = sliderValue;
+  valueDisplay.textContent = sliderValue;
+
+  updateSliderColor(sliderValue);
+
+  animationId = requestAnimationFrame(updateSlider);
 }
 
-// Start/resume listening and slider movement
+// ▶ Start listening
 async function startListening() {
-    if (running) return;
-    running = true;
+  if (running) return;
+  running = true;
 
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        microphone = audioContext.createMediaStreamSource(stream);
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        const bufferLength = analyser.frequencyBinCount;
-        dataArray = new Uint8Array(bufferLength);
+    microphone = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
 
-        microphone.connect(analyser);
-    } else if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-    }
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    microphone.connect(analyser);
+  } else if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
 
-    updateSlider();
+  updateSlider();
 }
 
-// Stop slider updates
+// ⏸ Stop slider
 function stopSlider() {
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-    }
-    running = false;
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  running = false;
 }
 
-// Event listeners
-document.getElementById('setBtn').addEventListener('click', () => {
-    startListening();
-});
+// Buttons
+document.getElementById('setBtn').addEventListener('click', startListening);
 
 document.getElementById('saveBtn').addEventListener('click', () => {
-    stopSlider(); // Stop slider movement
-    let savedValue = slider.value;
-    savedDisplay.textContent = `Saved value: ${savedValue}% ✅`;
+  stopSlider();
+  savedDisplay.textContent = `Saved value: ${slider.value}% ✅`;
 });
 </script>
 
