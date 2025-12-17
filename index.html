@@ -66,31 +66,17 @@
 
   #savedValue { font-weight: bold; color: #00ff88; margin-top: 15px; }
 
-  #pulse {
-    margin: 20px auto;
-    width: 50px;
-    height: 50px;
-    background: #ff6f61;
-    border-radius: 50%;
-    box-shadow: 0 0 15px rgba(255,111,97,0.6);
-    transition: transform 0.1s, box-shadow 0.1s;
-  }
-
   #value {
     font-weight: bold;
     color: #fff;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
   }
 
-  #checkbox-row { margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; color: #fff; font-weight: bold; }
-
 </style>
 </head>
 <body>
 
 <h1>Voice-Controlled Slider</h1>
-
-<div id="pulse"></div>
 
 <input type="range" id="slider" min="0" max="100" value="50">
 <p>Slider value: <span id="value">50</span>%</p>
@@ -100,11 +86,6 @@
 
 <p id="savedValue"></p>
 
-<div id="checkbox-row">
-  <input type="checkbox" id="readCheck" disabled>
-  <label for="readCheck">I have set the volume</label>
-</div>
-
 <script>
 let audioContext;
 let analyser;
@@ -113,8 +94,6 @@ let dataArray;
 let slider = document.getElementById('slider');
 let valueDisplay = document.getElementById('value');
 let savedDisplay = document.getElementById('savedValue');
-let pulse = document.getElementById('pulse');
-let readCheck = document.getElementById('readCheck');
 let running = false;
 let animationId = null;
 
@@ -130,11 +109,6 @@ function updateSlider() {
     let sliderValue = Math.min(100, Math.max(0, Math.floor(rms * 500)));
     slider.value = sliderValue;
     valueDisplay.textContent = sliderValue;
-
-    // Pulse reacts to RMS volume
-    let scale = 1 + rms * 1.5;
-    pulse.style.transform = `scale(${scale})`;
-    pulse.style.boxShadow = `0 0 ${10 + rms*50}px rgba(255,111,97,${0.5 + rms})`;
 
     animationId = requestAnimationFrame(updateSlider);
 }
@@ -169,22 +143,17 @@ function stopSlider() {
         animationId = null;
     }
     running = false;
-    // Reset pulse to normal
-    pulse.style.transform = 'scale(1)';
-    pulse.style.boxShadow = '0 0 15px rgba(255,111,97,0.6)';
 }
 
 // Event listeners
 document.getElementById('setBtn').addEventListener('click', () => {
     startListening();
-    readCheck.checked = false; // ready to set volume again
 });
 
 document.getElementById('saveBtn').addEventListener('click', () => {
     stopSlider(); // Stop slider movement
     let savedValue = slider.value;
     savedDisplay.textContent = `Saved value: ${savedValue}% ✅`;
-    readCheck.checked = true;
 });
 </script>
 
